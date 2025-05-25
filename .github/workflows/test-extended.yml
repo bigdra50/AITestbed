@@ -80,6 +80,7 @@ jobs:
     needs: cross-platform-tests
     env:
       PORT: 8081
+      OPENWEATHER_API_KEY: dummy_key_for_ci
 
     steps:
       - name: Checkout code
@@ -165,6 +166,7 @@ jobs:
     needs: integration-tests
     env:
       PORT: 8082
+      OPENWEATHER_API_KEY: dummy_key_for_ci
 
     steps:
       - name: Checkout code
@@ -267,6 +269,7 @@ jobs:
     needs: integration-tests
     env:
       PORT: 8083
+      OPENWEATHER_API_KEY: dummy_key_for_ci
 
     steps:
       - name: Checkout code
