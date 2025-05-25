@@ -1,11 +1,15 @@
-name: Claude Auto Review
+# このワークフローは無効化されています
+# CI完了後のレビューは claude-review-after-ci.yml を使用してください
+
+name: Claude Auto Review (Disabled)
 
 on:
-  pull_request:
-    types: [opened]
+  # pull_request:
+  #   types: [opened]
 
 jobs:
   auto-review:
+    if: false  # このジョブを無効化
     runs-on: ubuntu-latest
     permissions:
       contents: read
