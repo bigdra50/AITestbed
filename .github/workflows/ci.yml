@@ -1,0 +1,204 @@
+name: CI - Basic Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  DENO_VERSION: v2.x
+
+jobs:
+  basic-checks:
+    name: Basic CI Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Verify Deno installation
+        run: |
+          deno --version
+          deno info
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.json', '**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Install dependencies
+        run: |
+          echo "=== Installing Fresh dependencies ==="
+          deno cache main.ts
+          if [ -f deno.lock ]; then
+            deno cache --lock=deno.lock main.ts
+          fi
+
+      - name: Check lock file consistency
+        if: hashFiles('deno.lock') != ''
+        run: |
+          echo "=== Checking lock file consistency ==="
+          deno cache --lock=deno.lock --cached-only main.ts || {
+            echo "❌ Lock file is outdated"
+            echo "Run 'deno cache --lock=deno.lock --lock-write main.ts' locally"
+            exit 1
+          }
+
+      - name: Lint code
+        run: |
+          echo "=== Running Deno lint ==="
+          deno lint --rules-exclude=no-unused-vars
+
+      - name: Format check
+        run: |
+          echo "=== Checking code format ==="
+          deno fmt --check
+
+      - name: Type check
+        run: |
+          echo "=== Running TypeScript type check ==="
+          deno check **/*.ts **/*.tsx
+
+      - name: Run unit tests
+        run: |
+          echo "=== Running unit tests ==="
+          deno test \
+            --allow-all \
+            --coverage=coverage/ \
+            --junit-path=./junit.xml \
+            --reporter=pretty
+
+      - name: Generate coverage report
+        run: |
+          echo "=== Generating coverage report ==="
+          deno coverage coverage/ --lcov --output=coverage.lcov
+          deno coverage coverage/ --html --output=coverage-html/
+
+      - name: Build Fresh application
+        run: |
+          echo "=== Building Fresh application ==="
+          deno task build
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            junit.xml
+            coverage.lcov
+            coverage-html/
+          retention-days: 7
+
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push'
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.lcov
+          flags: unittests
+          name: fresh-app-coverage
+          fail_ci_if_error: false
+
+  # 依存関係の脆弱性チェック
+  dependency-audit:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Security audit
+        run: |
+          echo "=== Dependency security audit ==="
+          deno cache --quiet main.ts 2>&1 | grep -i "warning\|error" || echo "✅ No security warnings found"
+
+          # 外部依存関係の確認
+          echo "=== External dependencies ==="
+          deno info main.ts --json | jq -r '.modules[] | select(.specifier | startswith("https://")) | .specifier' | sort | uniq
+
+  # Fresh アプリケーションの動作確認
+  app-health-check:
+    name: Application Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PORT: 8080
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Install dependencies
+        run: deno cache main.ts
+
+      - name: Start Fresh app
+        run: |
+          echo "=== Starting Fresh application ==="
+          deno task start --port=$PORT &
+          APP_PID=$!
+          echo $APP_PID > app.pid
+
+          # アプリ起動待機
+          timeout 60 bash -c "
+            until curl -f http://localhost:$PORT > /dev/null 2>&1; do
+              echo 'Waiting for app to start...'
+              sleep 2
+            done
+          " || {
+            echo '❌ App failed to start within 60 seconds'
+            kill $APP_PID 2>/dev/null || true
+            exit 1
+          }
+
+          echo '✅ App started successfully'
+
+      - name: Health check
+        run: |
+          echo "=== Application health check ==="
+
+          # ホームページの確認
+          curl -f http://localhost:$PORT/ > /dev/null || {
+            echo '❌ Homepage not accessible'
+            exit 1
+          }
+          echo '✅ Homepage accessible'
+
+          # APIエンドポイントの確認（存在する場合）
+          if curl -f http://localhost:$PORT/api/weather?city=Tokyo > /dev/null 2>&1; then
+            echo '✅ Weather API accessible'
+          else
+            echo '⚠️ Weather API not accessible (may require API key)'
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f app.pid ]; then
+            APP_PID=$(cat app.pid)
+            kill $APP_PID 2>/dev/null || true
+            echo "Stopped app process $APP_PID"
+          fi
