@@ -40,6 +40,21 @@
     "exclude": ["build/", "static/"]
   },
   "fmt": {
-    "exclude": ["build/", "static/", "**/*.md"]
+    "useTabs": false,
+    "lineWidth": 80,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": false,
+    "proseWrap": "preserve",
+    "include": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+    "exclude": [
+      "build/",
+      "static/",
+      "node_modules/",
+      "**/*.md",
+      "**/*.yml",
+      "**/*.yaml",
+      "**/*.json"
+    ]
   }
 }
