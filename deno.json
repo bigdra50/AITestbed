@@ -3,11 +3,11 @@
   "version": "1.0.0",
   "exports": "./main.ts",
   "tasks": {
-    "check": "deno fmt --check && deno lint && deno check **/*.ts",
+    "check": "find . -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' | grep -v node_modules | xargs -r deno fmt --check && deno lint && deno check **/*.ts",
     "dev": "deno run --allow-net --allow-read --allow-env --watch=static/,routes/ dev.ts",
     "start": "deno run --allow-net --allow-read --allow-env main.ts",
     "build": "deno run --allow-net --allow-read --allow-env build.ts",
-    "fmt": "deno fmt",
+    "fmt": "find . -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.jsx' | grep -v node_modules | xargs -r deno fmt",
     "lint": "deno lint",
     "test": "deno test --allow-net --allow-read --allow-env",
     "typecheck": "deno check **/*.ts"

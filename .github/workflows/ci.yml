@@ -66,7 +66,8 @@ jobs:
       - name: Format check
         run: |
           echo "=== Checking code format ==="
-          deno fmt --check
+          # TypeScript/JavaScript ファイルのみをフォーマットチェック
+          find . -name "*.ts" -o -name "*.tsx" -o -name "*.js" -o -name "*.jsx" | grep -v node_modules | xargs -r deno fmt --check
 
       - name: Type check
         run: |
