@@ -42,31 +42,34 @@ export const handler: Handlers = {
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
 
     try {
       let apiUrl: string;
-      
+
       if (lat && lon) {
         // 座標による検索
-        apiUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=ja`;
+        apiUrl =
+          `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric&lang=ja`;
       } else if (city) {
         // 都市名による検索
-        apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&appid=${apiKey}&units=metric&lang=ja`;
+        apiUrl = `https://api.openweathermap.org/data/2.5/weather?q=${
+          encodeURIComponent(city)
+        }&appid=${apiKey}&units=metric&lang=ja`;
       } else {
         return new Response(
           JSON.stringify({ error: "座標または都市名が必要です" }),
           {
             status: 400,
             headers: { "Content-Type": "application/json" },
-          }
+          },
         );
       }
 
       const response = await fetch(apiUrl);
-      
+
       if (!response.ok) {
         if (response.status === 404) {
           return new Response(
@@ -74,10 +77,10 @@ export const handler: Handlers = {
             {
               status: 404,
               headers: { "Content-Type": "application/json" },
-            }
+            },
           );
         }
-        
+
         throw new Error(`OpenWeatherMap API error: ${response.status}`);
       }
 
@@ -115,15 +118,15 @@ export const handler: Handlers = {
       return new Response(JSON.stringify(weatherData), { headers });
     } catch (error) {
       console.error("Weather API error:", error);
-      
+
       return new Response(
-        JSON.stringify({ 
-          error: "天気情報の取得に失敗しました。しばらく後でお試しください。" 
+        JSON.stringify({
+          error: "天気情報の取得に失敗しました。しばらく後でお試しください。",
         }),
         {
           status: 500,
           headers: { "Content-Type": "application/json" },
-        }
+        },
       );
     }
   },

@@ -1,10 +1,14 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code (claude.ai/code) when working with
+code in this repository.
 
 ## Project Overview
 
-AITestbed is a weather forecast web application project designed to provide users with current weather information and forecasts for their location or searched cities. The application focuses on modern UI/UX with responsive design supporting both mobile and desktop platforms.
+AITestbed is a weather forecast web application project designed to provide
+users with current weather information and forecasts for their location or
+searched cities. The application focuses on modern UI/UX with responsive design
+supporting both mobile and desktop platforms.
 
 ## Technology Stack
 

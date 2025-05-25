@@ -115,7 +115,7 @@ jobs:
           Deno.test("Homepage loads successfully", async () => {
             const response = await fetch("http://localhost:8081/");
             assertEquals(response.status, 200);
-            
+
             const html = await response.text();
             assertExists(html);
             assertEquals(html.includes("Weather App"), true);
@@ -124,7 +124,7 @@ jobs:
           Deno.test("API responds with JSON", async () => {
             try {
               const response = await fetch("http://localhost:8081/api/weather?city=Tokyo");
-              
+
               if (response.status === 200) {
                 const data = await response.json();
                 assertExists(data);
@@ -136,7 +136,7 @@ jobs:
             }
           });
           EOF
-            
+
             deno test tests/integration/ --allow-all
           fi
 
@@ -210,12 +210,12 @@ jobs:
           Deno.test("Basic E2E - Homepage elements", async () => {
             // Playwrightを使用したE2Eテストの例
             // 実際の実装では playwright-deno などを使用
-            
+
             const response = await fetch("http://localhost:8082/");
             assertEquals(response.status, 200);
-            
+
             const html = await response.text();
-            
+
             // 基本的な要素が存在することを確認
             assertEquals(html.includes("Weather App"), true);
             assertEquals(html.includes("都市名を入力"), true);
@@ -228,7 +228,7 @@ jobs:
             console.log("Theme toggle E2E test - implementation needed");
           });
           EOF
-            
+
             deno test tests/e2e/ --allow-all
           fi
 

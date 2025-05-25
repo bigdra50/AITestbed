@@ -180,7 +180,7 @@ jobs:
           if [ -d "_fresh" ]; then
             echo "Fresh build output size:"
             du -sh _fresh/
-            
+
             echo "Detailed size breakdown:"
             find _fresh -type f -name "*.js" -o -name "*.css" | xargs ls -lh
           fi
