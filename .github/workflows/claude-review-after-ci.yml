@@ -4,29 +4,50 @@ on:
   workflow_run:
     workflows: ["CI - Basic Checks"]
     types: [completed]
-    branches-ignore: [main]
 
 jobs:
   claude-review:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    if: |
+      github.event.workflow_run.conclusion == 'success' && 
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_branch != 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
       checks: read
+      actions: read
       id-token: write
     
     steps:
+      - name: Debug workflow_run event
+        run: |
+          echo "=== Workflow Run Event Debug ==="
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Event: ${{ github.event.workflow_run.event }}"
+          echo "Head branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Head SHA: ${{ github.event.workflow_run.head_sha }}"
+          echo "Repository: ${{ github.event.workflow_run.repository.full_name }}"
+
       - name: Get PR info
         id: pr
         uses: actions/github-script@v7
         with:
           script: |
+            console.log('=== Searching for PR ===');
+            console.log('Branch:', context.payload.workflow_run.head_branch);
+            console.log('Repository:', context.repo.owner + '/' + context.repo.repo);
+            
             const { data: pullRequests } = await github.rest.pulls.list({
               owner: context.repo.owner,
               repo: context.repo.repo,
               head: `${context.repo.owner}:${context.payload.workflow_run.head_branch}`,
               state: 'open'
+            });
+            
+            console.log('Found PRs:', pullRequests.length);
+            pullRequests.forEach(pr => {
+              console.log(`- PR #${pr.number}: ${pr.title} (${pr.head.ref})`);
             });
             
             if (pullRequests.length === 0) {
@@ -37,6 +58,7 @@ jobs:
             const pr = pullRequests[0];
             core.setOutput('number', pr.number);
             core.setOutput('sha', pr.head.sha);
+            console.log('Selected PR:', pr.number);
             return pr.number;
 
       - name: Checkout PR
@@ -50,19 +72,30 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const { data: reviews } = await github.rest.pulls.listReviews({
+            console.log('=== Checking for existing Claude reviews ===');
+            
+            // PRコメントをチェック
+            const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: ${{ steps.pr.outputs.number }}
+              issue_number: ${{ steps.pr.outputs.number }}
             });
             
-            const claudeReview = reviews.find(review => 
-              review.user.login === 'github-actions[bot]' && 
-              review.body && 
-              review.body.includes('Claude Code レビュー')
+            console.log('Total comments:', comments.length);
+            
+            const claudeComment = comments.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body && 
+              comment.body.includes('Claude Code レビュー')
             );
             
-            core.setOutput('exists', claudeReview ? 'true' : 'false');
+            if (claudeComment) {
+              console.log('Found existing Claude review comment:', claudeComment.id);
+              core.setOutput('exists', 'true');
+            } else {
+              console.log('No existing Claude review found');
+              core.setOutput('exists', 'false');
+            }
 
       - name: Run Claude Review
         if: steps.check-review.outputs.exists == 'false'
