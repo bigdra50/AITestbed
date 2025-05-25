@@ -129,7 +129,13 @@ jobs:
           # 結果の分析
           if [ -s lint-results.json ]; then
             echo "Lint issues found:"
-            cat lint-results.json | jq -r '.[] | "\(.filename):\(.range.start.line) - \(.message)"'
+            # lint-results.jsonの構造を確認してから解析
+            if jq -e 'type == "array"' lint-results.json > /dev/null 2>&1; then
+              cat lint-results.json | jq -r '.[] | "\(.filename // "unknown"):\(.range.start.line // 0) - \(.message // .code)"' 2>/dev/null || cat lint-results.json
+            else
+              echo "Raw lint results:"
+              cat lint-results.json
+            fi
           else
             echo "✅ No lint issues found"
           fi

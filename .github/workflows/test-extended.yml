@@ -49,7 +49,15 @@ jobs:
       - name: Run tests
         run: |
           echo "=== Running tests on ${{ matrix.os }} ==="
-          deno test --allow-all --coverage=coverage-${{ matrix.os }}/
+          # テストファイルが存在するかチェック
+          if find . -name "*test*.ts" -o -name "*_test.ts" -o -name "test*.ts" | grep -q .; then
+            echo "Test files found, running tests..."
+            deno test --allow-all --coverage=coverage-${{ matrix.os }}/
+          else
+            echo "No test files found, skipping tests"
+            mkdir -p coverage-${{ matrix.os }}/
+            echo "No tests executed" > coverage-${{ matrix.os }}/dummy.txt
+          fi
 
       - name: Build application
         run: |
