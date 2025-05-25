@@ -47,6 +47,7 @@ jobs:
         run: deno cache main.ts
 
       - name: Run tests
+        shell: bash
         run: |
           echo "=== Running tests on ${{ matrix.os }} ==="
           # テストファイルが存在するかチェック
