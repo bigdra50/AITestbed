@@ -252,6 +252,7 @@ jobs:
     timeout-minutes: 20
     env:
       PORT: 8090
+      OPENWEATHER_API_KEY: dummy_key_for_ci
 
     steps:
       - name: Checkout code
@@ -341,3 +342,4 @@ jobs:
           if [ -f app.pid ]; then
             APP_PID=$(cat app.pid)
             kill $APP_PID 2>/dev/null || true
+          fi

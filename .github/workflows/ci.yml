@@ -160,6 +160,7 @@ jobs:
     timeout-minutes: 10
     env:
       PORT: 8080
+      OPENWEATHER_API_KEY: dummy_key_for_ci
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -210,10 +211,14 @@ jobs:
           fi
 
           # APIエンドポイントの確認（存在する場合）
-          if curl -f -s http://localhost:$PORT/api/weather?city=Tokyo > /dev/null 2>&1; then
-            echo '✅ Weather API accessible'
+          echo "Testing Weather API endpoint..."
+          WEATHER_RESPONSE=$(curl -s http://localhost:$PORT/api/weather?city=Tokyo)
+          if echo "$WEATHER_RESPONSE" | grep -q "error.*API key"; then
+            echo '✅ Weather API endpoint accessible (API key validation working)'
+          elif echo "$WEATHER_RESPONSE" | grep -q "location\|weather"; then
+            echo '✅ Weather API working correctly'
           else
-            echo '⚠️ Weather API not accessible (may require API key or endpoint may not exist)'
+            echo "⚠️ Weather API response: $WEATHER_RESPONSE"
           fi
 
       - name: Cleanup
