@@ -140,6 +140,8 @@ jobs:
                 const data = await response.json();
                 assertExists(data);
               } else {
+                // Consume the response body to prevent leak
+                await response.text();
                 console.log("Weather API requires configuration - skipping test");
               }
             } catch (error) {
