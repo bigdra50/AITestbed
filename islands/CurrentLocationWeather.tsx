@@ -1,6 +1,6 @@
-import { computed, signal } from "@preact/signals";
+import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
-import { WeatherData } from "../types/weather.ts";
+import type { WeatherData } from "../types/weather.ts";
 
 // 位置情報の状態管理
 interface LocationState {
@@ -174,6 +174,7 @@ function ErrorDisplay(
         </h3>
         <p class="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
         <button
+          type="button"
           onClick={onRetry}
           class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
         >
@@ -250,6 +251,7 @@ export default function CurrentLocationWeather() {
           </p>
         </div>
         <button
+          type="button"
           onClick={handleRefresh}
           class="text-blue-500 hover:text-blue-600 p-2 rounded-lg transition-colors"
           title="更新"

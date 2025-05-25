@@ -1,6 +1,5 @@
 import { Head } from "$fresh/runtime.ts";
 import { Header } from "../components/Header.tsx";
-import { WeatherCard } from "../components/WeatherCard.tsx";
 import { SearchBar } from "../islands/SearchBar.tsx";
 import CurrentLocationWeather from "../islands/CurrentLocationWeather.tsx";
 
