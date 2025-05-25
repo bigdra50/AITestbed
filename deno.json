@@ -40,6 +40,6 @@
     "exclude": ["build/", "static/"]
   },
   "fmt": {
-    "exclude": ["build/", "static/"]
+    "exclude": ["build/", "static/", "**/*.md"]
   }
 }
