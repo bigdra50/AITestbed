@@ -76,8 +76,9 @@ jobs:
       - name: Run unit tests
         run: |
           echo "=== Running unit tests ==="
-          # テストファイルが存在する場合のみ実行
-          if find . -name "*test*" -type f | head -1 | grep -q .; then
+          # テストファイルが存在するかチェック
+          if find . -name "*test*.ts" -o -name "*_test.ts" -o -name "test*.ts" | grep -q .; then
+            echo "Test files found, running tests..."
             deno test \
               --allow-all \
               --coverage=coverage/ \
@@ -86,7 +87,7 @@ jobs:
           else
             echo "No test files found, skipping tests"
             mkdir -p coverage/
-            echo "No tests executed" > junit.xml
+            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="no-tests" tests="0" failures="0" errors="0" time="0"/></testsuites>' > junit.xml
           fi
 
       - name: Generate coverage report
