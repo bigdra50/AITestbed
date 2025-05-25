@@ -28,6 +28,8 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           timeout_minutes: "60"
+          custom_instructions: |
+            日本語で応答してください｡
           direct_prompt: |
             Please review this pull request focusing on the changed files.
             Provide feedback on:

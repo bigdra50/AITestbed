@@ -92,6 +92,7 @@ jobs:
           - DO NOT post any comments to the issue
           - Your ONLY action should be to apply labels using mcp__github__update_issue
           - It's okay to not add any labels if none are clearly applicable
+          - Response to users should be in Japanese.
           EOF
 
       - name: Run Claude Code for Issue Triage
