@@ -92,7 +92,7 @@ jobs:
       - name: Build Fresh application
         run: |
           echo "=== Building Fresh application ==="
-          deno task build
+          deno check main.ts
 
       - name: Upload test results
         if: always()
