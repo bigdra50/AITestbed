@@ -13,6 +13,7 @@ export function SearchBar() {
       // 都市検索のロジックは後で実装
       console.log("Searching for:", query);
       // TODO: API 呼び出しと結果表示
+      await new Promise(resolve => setTimeout(resolve, 500)); // 一時的な遅延
     } catch (error) {
       console.error("Search error:", error);
     } finally {

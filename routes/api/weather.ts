@@ -1,4 +1,4 @@
-import { Handlers } from "$fresh/server.ts";
+import type { Handlers } from "$fresh/server.ts";
 
 // OpenWeatherMap API の型定義
 interface OpenWeatherResponse {

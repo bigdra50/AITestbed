@@ -6,6 +6,7 @@ export function WeatherCard() {
           現在地の天気
         </h2>
         <button 
+          type="button"
           class="p-2 rounded-lg bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
           title="現在地を取得"
         >

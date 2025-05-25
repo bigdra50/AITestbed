@@ -24,6 +24,7 @@ export function ThemeToggle() {
 
   return (
     <button
+      type="button"
       onClick={toggleTheme}
       class="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/30"
       title={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
