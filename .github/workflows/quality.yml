@@ -296,7 +296,7 @@ jobs:
           echo "=== Performance benchmarks ==="
 
           # アプリ起動
-          deno task start --port=$PORT &
+          deno run --allow-all main.ts --port=$PORT &
           APP_PID=$!
           echo $APP_PID > app.pid
 

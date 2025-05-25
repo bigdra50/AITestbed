@@ -177,7 +177,7 @@ jobs:
         run: |
           echo "=== Starting Fresh application ==="
           # アプリケーションをバックグラウンドで起動
-          timeout 120 bash -c "deno task start --port=$PORT" &
+          timeout 120 bash -c "deno run --allow-all main.ts --port=$PORT" &
           APP_PID=$!
           echo $APP_PID > app.pid
 
