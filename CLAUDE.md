@@ -1,65 +1,75 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with
-code in this repository.
+このファイルは、Claude Code (claude.ai/code) がこのリポジトリでコードを扱う際のガイダンスを提供します。
 
-## Project Overview
+## プロジェクト概要
 
-AITestbed is a weather forecast web application project designed to provide
-users with current weather information and forecasts for their location or
-searched cities. The application focuses on modern UI/UX with responsive design
-supporting both mobile and desktop platforms.
+AITestbedは、ユーザーの現在地や検索した都市の現在の天気情報と予報を提供するために設計された天気予報Webアプリケーションプロジェクトです。このアプリケーションは、モバイルとデスクトッププラットフォームの両方をサポートするレスポンシブデザインを備えたモダンなUI/UXに焦点を当てています。
 
-## Technology Stack
+## 技術スタック
 
-- **Frontend Framework**: Fresh (Preact-based)
-- **Styling**: Tailwind CSS
-- **State Management**: Preact Signals
-- **Runtime**: Deno
-- **Language**: TypeScript
-- **External API**: OpenWeatherMap API
+- **フロントエンドフレームワーク**: Fresh (Preactベース)
+- **スタイリング**: Tailwind CSS
+- **状態管理**: Preact Signals
+- **ランタイム**: Deno
+- **言語**: TypeScript
+- **外部API**: OpenWeatherMap API
 
-## Development Commands
+## Git ワークフロー
 
-Since this is a Fresh/Deno project, use these standard commands:
+このプロジェクトでは **GitHub Flow** を使用します：
+
+1. **メインブランチ**: `main` ブランチは常にデプロイ可能な状態を保つ
+2. **フィーチャーブランチ**: 新機能や修正のために `main` から新しいブランチを作成
+3. **ブランチ命名規則**: 
+   - `feature/機能名` (新機能)
+   - `fix/修正内容` (バグ修正)
+   - `refactor/リファクタリング内容` (リファクタリング)
+4. **プルリクエスト**: 作業完了後、`main` ブランチに向けてプルリクエストを作成
+5. **レビュー**: コードレビュー後にマージ
+6. **CI/CD**: プルリクエストとマージ時に自動テスト・フォーマット・Lintを実行
+
+## 開発コマンド
+
+これはFresh/Denoプロジェクトなので、以下の標準コマンドを使用してください：
 
 ```bash
-# Start development server
+# 開発サーバーを起動
 deno task start
 
-# Run tests
+# テストを実行
 deno test
 
-# Format code
+# コードをフォーマット
 deno fmt
 
-# Lint code
+# Lintを実行
 deno lint
 
-# Check types
+# 型チェックを実行
 deno check **/*.ts
 ```
 
-## Key Features to Implement
+## 実装する主要機能
 
-- Current location weather display using browser geolocation API
-- City search with autocomplete functionality
-- 5-day detailed forecast with hourly breakdowns
-- Dark/light theme switching
-- PWA support with offline capabilities
-- Responsive design (mobile, tablet, desktop)
-- Temperature and precipitation charts
-- Search history (localStorage, max 10 cities)
+- ブラウザのGeolocation APIを使用した現在地の天気表示
+- オートコンプリート機能付きの都市検索
+- 時間別詳細を含む5日間の詳細予報
+- ダーク/ライトテーマの切り替え
+- オフライン機能付きPWAサポート
+- レスポンシブデザイン（モバイル、タブレット、デスクトップ）
+- 気温と降水量のチャート
+- 検索履歴（localStorage、最大10都市）
 
-## Architecture Notes
+## アーキテクチャメモ
 
-- API routes should handle OpenWeatherMap integration
-- Weather data interface is defined in docs/requirement.md:200
-- Implement proper error handling for network, geolocation, and API failures
-- Cache API responses for 5 minutes to optimize performance
-- Target Core Web Vitals "Good" rating and Lighthouse score 90+
-- HTTPS required for geolocation API access
+- APIルートはOpenWeatherMap連携を処理する必要があります
+- 天気データインターフェースは docs/requirement.md:200 で定義されています
+- ネットワーク、位置情報、API障害に対する適切なエラーハンドリングを実装
+- パフォーマンス最適化のためAPIレスポンスを5分間キャッシュ
+- Core Web Vitals「Good」評価とLighthouseスコア90+を目標
+- Geolocation API アクセスにはHTTPSが必要
 
-## API Rate Limits
+## API レート制限
 
-OpenWeatherMap API is limited to 1000 calls/day in the free tier.
+OpenWeatherMap APIは無料プランで1日1000回の呼び出しに制限されています。
