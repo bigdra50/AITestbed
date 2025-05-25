@@ -97,7 +97,8 @@ jobs:
       - name: Start Fresh application
         run: |
           echo "=== Starting Fresh app for integration tests ==="
-          deno task start --port=$PORT &
+          # Use direct deno command instead of task to avoid permission issues
+          deno run --allow-all main.ts --port=$PORT &
           APP_PID=$!
           echo $APP_PID > app.pid
 
@@ -193,7 +194,8 @@ jobs:
       - name: Start Fresh application
         run: |
           echo "=== Starting Fresh app for E2E tests ==="
-          deno task start --port=$PORT &
+          # Use direct deno command instead of task to avoid permission issues
+          deno run --allow-all main.ts --port=$PORT &
           APP_PID=$!
           echo $APP_PID > app.pid
 
@@ -296,7 +298,8 @@ jobs:
       - name: Start Fresh application
         run: |
           echo "=== Starting Fresh app for performance tests ==="
-          deno task start --port=$PORT &
+          # Use direct deno command instead of task to avoid permission issues
+          deno run --allow-all main.ts --port=$PORT &
           APP_PID=$!
           echo $APP_PID > app.pid
 
