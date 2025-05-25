@@ -34,4 +34,7 @@ jobs:
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          custom_instructions: |
+            すべての回答、コメント、コードの説明を日本語で行ってください。
+            プルリクエストの説明文やコミットメッセージも日本語で作成してください。
 
