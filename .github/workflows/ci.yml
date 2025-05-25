@@ -1,0 +1,236 @@
+name: CI - Basic Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  DENO_VERSION: v2.x
+
+jobs:
+  basic-checks:
+    name: Basic CI Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Verify Deno installation
+        run: |
+          deno --version
+          deno info
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/deno
+            ~/.deno
+          key: ${{ runner.os }}-deno-${{ hashFiles('**/deno.json', '**/deno.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deno-
+
+      - name: Install dependencies
+        run: |
+          echo "=== Installing Fresh dependencies ==="
+          deno cache main.ts
+
+      - name: Check lock file consistency
+        if: hashFiles('deno.lock') != ''
+        run: |
+          echo "=== Checking lock file consistency ==="
+          # ロックファイルが存在する場合のみチェック
+          if [ -f deno.lock ]; then
+            echo "Lock file found, ensuring dependencies are properly locked"
+            deno cache --lock=deno.lock main.ts
+          else
+            echo "No lock file found, skipping lock consistency check"
+          fi
+
+      - name: Lint code
+        run: |
+          echo "=== Running Deno lint ==="
+          deno lint --rules-exclude=no-unused-vars
+
+      - name: Format check
+        run: |
+          echo "=== Checking code format ==="
+          deno fmt --check
+
+      - name: Type check
+        run: |
+          echo "=== Running TypeScript type check ==="
+          deno check **/*.ts **/*.tsx
+
+      - name: Run unit tests
+        run: |
+          echo "=== Running unit tests ==="
+          # テストファイルが存在するかチェック
+          if find . -name "*test*.ts" -o -name "*_test.ts" -o -name "test*.ts" | grep -q .; then
+            echo "Test files found, running tests..."
+            deno test \
+              --allow-all \
+              --coverage=coverage/ \
+              --junit-path=./junit.xml \
+              --reporter=pretty
+          else
+            echo "No test files found, skipping tests"
+            mkdir -p coverage/
+            echo '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="no-tests" tests="0" failures="0" errors="0" time="0"/></testsuites>' > junit.xml
+          fi
+
+      - name: Generate coverage report
+        run: |
+          echo "=== Generating coverage report ==="
+          if [ -d coverage/ ] && [ "$(ls -A coverage/)" ]; then
+            deno coverage coverage/ --lcov --output=coverage.lcov
+            deno coverage coverage/ --html --output=coverage-html/
+          else
+            echo "No coverage data available"
+            touch coverage.lcov
+            mkdir -p coverage-html
+          fi
+
+      - name: Build Fresh application
+        run: |
+          echo "=== Building Fresh application ==="
+          deno check main.ts
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            junit.xml
+            coverage.lcov
+            coverage-html/
+          retention-days: 7
+
+      - name: Upload coverage to Codecov
+        if: github.event_name == 'push' && hashFiles('coverage.lcov') != ''
+        uses: codecov/codecov-action@v4
+        with:
+          file: coverage.lcov
+          flags: unittests
+          name: fresh-app-coverage
+          fail_ci_if_error: false
+
+  # 依存関係の脆弱性チェック
+  dependency-audit:
+    name: Dependency Security Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Security audit
+        run: |
+          echo "=== Dependency security audit ==="
+          deno cache --quiet main.ts 2>&1 | grep -i "warning\|error" || echo "✅ No security warnings found"
+
+          # 外部依存関係の確認
+          echo "=== External dependencies ==="
+          if command -v jq >/dev/null 2>&1; then
+            deno info main.ts --json | jq -r '.modules[] | select(.specifier | startswith("https://")) | .specifier' | sort | uniq
+          else
+            echo "jq not available, showing basic dependency info"
+            deno info main.ts
+          fi
+
+  # Fresh アプリケーションの動作確認
+  app-health-check:
+    name: Application Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PORT: 8080
+      OPENWEATHER_API_KEY: dummy_key_for_ci
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Install dependencies
+        run: deno cache main.ts
+
+      - name: Start Fresh app
+        run: |
+          echo "=== Starting Fresh application ==="
+          # アプリケーションをバックグラウンドで起動
+          timeout 120 bash -c "deno run --allow-all main.ts --port=$PORT" &
+          APP_PID=$!
+          echo $APP_PID > app.pid
+
+          # アプリ起動待機
+          echo "Waiting for app to start..."
+          timeout 60 bash -c "
+            until curl -f http://localhost:$PORT > /dev/null 2>&1; do
+              echo 'Waiting for app to start...'
+              sleep 3
+            done
+          " || {
+            echo '❌ App failed to start within 60 seconds'
+            if [ -f app.pid ]; then
+              kill $(cat app.pid) 2>/dev/null || true
+            fi
+            exit 1
+          }
+
+          echo '✅ App started successfully'
+
+      - name: Health check
+        run: |
+          echo "=== Application health check ==="
+
+          # ホームページの確認
+          if curl -f -s http://localhost:$PORT/ > /dev/null; then
+            echo '✅ Homepage accessible'
+          else
+            echo '❌ Homepage not accessible'
+            exit 1
+          fi
+
+          # APIエンドポイントの確認（存在する場合）
+          echo "Testing Weather API endpoint..."
+          WEATHER_RESPONSE=$(curl -s http://localhost:$PORT/api/weather?city=Tokyo)
+          if echo "$WEATHER_RESPONSE" | grep -q "error.*API key"; then
+            echo '✅ Weather API endpoint accessible (API key validation working)'
+          elif echo "$WEATHER_RESPONSE" | grep -q "location\|weather"; then
+            echo '✅ Weather API working correctly'
+          else
+            echo "⚠️ Weather API response: $WEATHER_RESPONSE"
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f app.pid ]; then
+            APP_PID=$(cat app.pid)
+            echo "Stopping app process $APP_PID"
+            kill $APP_PID 2>/dev/null || true
+            # プロセスの完全終了を待機
+            sleep 2
+            kill -9 $APP_PID 2>/dev/null || true
+            rm -f app.pid
+          fi

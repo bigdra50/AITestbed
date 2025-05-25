@@ -1,0 +1,351 @@
+name: Quality & Security
+
+on:
+  schedule:
+    # 毎週月曜日 2:00 UTC に実行
+    - cron: "0 2 * * 1"
+  pull_request:
+    paths:
+      - "deno.json"
+      - "deno.lock"
+      - ".github/workflows/**"
+  push:
+    branches: [main]
+    paths:
+      - "deno.json"
+      - "deno.lock"
+  workflow_dispatch:
+
+env:
+  DENO_VERSION: v2.x
+
+jobs:
+  # セキュリティ監査
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Dependency security audit
+        run: |
+          echo "=== Deno dependency security audit ==="
+
+          # 依存関係のキャッシュ（警告/エラーを確認）
+          deno cache --quiet main.ts 2>&1 | tee security-warnings.log
+
+          # 警告やエラーの確認
+          if grep -i "warning\|error" security-warnings.log; then
+            echo "⚠️ Security warnings found"
+            cat security-warnings.log
+          else
+            echo "✅ No security warnings found"
+          fi
+
+      - name: External dependency analysis
+        run: |
+          echo "=== External dependency analysis ==="
+
+          # 外部依存関係のリスト作成
+          deno info main.ts --json | jq -r '.modules[] | select(.specifier | startswith("https://")) | .specifier' | sort | uniq > external-deps.txt
+
+          echo "External dependencies:"
+          cat external-deps.txt
+
+          # 危険な可能性のあるドメインをチェック
+          SUSPICIOUS_DOMAINS="raw.githubusercontent.com|cdn.skypack.dev|unpkg.com"
+          if grep -E "$SUSPICIOUS_DOMAINS" external-deps.txt; then
+            echo "⚠️ Found dependencies from potentially risky domains"
+          else
+            echo "✅ All dependencies from trusted sources"
+          fi
+
+      - name: Code security scan with Trivy
+        run: |
+          echo "=== Installing Trivy ==="
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+
+          echo "=== Running Trivy security scan ==="
+          trivy fs --security-checks vuln,secret,config . --format table --exit-code 0 || echo "Trivy scan completed"
+
+      - name: Check for hardcoded secrets
+        run: |
+          echo "=== Checking for hardcoded secrets ==="
+
+          # 基本的なシークレットパターンをチェック
+          SECRET_PATTERNS="(api[_-]?key|password|secret|token)[\"']?\s*[:=]\s*[\"'][^\"']{8,}"
+
+          if grep -r -i -E "$SECRET_PATTERNS" --exclude-dir=.git --exclude-dir=node_modules . || true; then
+            echo "⚠️ Potential secrets found - please review"
+          else
+            echo "✅ No obvious secrets found"
+          fi
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-report
+          path: |
+            security-warnings.log
+            external-deps.txt
+          retention-days: 30
+
+  # コード品質分析
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # フル履歴が必要
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Install dependencies
+        run: deno cache main.ts
+
+      - name: Advanced lint analysis
+        run: |
+          echo "=== Advanced lint analysis ==="
+
+          # 詳細なlint実行
+          deno lint --json > lint-results.json || true
+
+          # 結果の分析
+          if [ -s lint-results.json ]; then
+            echo "Lint issues found:"
+            # lint-results.jsonの構造を確認してから解析
+            if jq -e 'type == "array"' lint-results.json > /dev/null 2>&1; then
+              cat lint-results.json | jq -r '.[] | "\(.filename // "unknown"):\(.range.start.line // 0) - \(.message // .code)"' 2>/dev/null || cat lint-results.json
+            else
+              echo "Raw lint results:"
+              cat lint-results.json
+            fi
+          else
+            echo "✅ No lint issues found"
+          fi
+
+      - name: Code complexity analysis
+        run: |
+          echo "=== Code complexity analysis ==="
+
+          # TypeScriptファイルの数と行数
+          echo "TypeScript files:"
+          find . -name "*.ts" -o -name "*.tsx" | grep -v node_modules | wc -l
+
+          echo "Total lines of TypeScript code:"
+          find . -name "*.ts" -o -name "*.tsx" | grep -v node_modules | xargs wc -l | tail -1
+
+          # 最大ファイルサイズ
+          echo "Largest TypeScript files:"
+          find . -name "*.ts" -o -name "*.tsx" | grep -v node_modules | xargs wc -l | sort -rn | head -5
+
+      - name: Type coverage analysis
+        run: |
+          echo "=== Type coverage analysis ==="
+
+          # すべてのTSファイルの型チェックを詳細に実行
+          deno check --all **/*.ts **/*.tsx 2>&1 | tee type-check-results.txt || true
+
+          if grep -i "error" type-check-results.txt; then
+            echo "⚠️ Type errors found"
+          else
+            echo "✅ All types check passed"
+          fi
+
+      - name: Dead code detection
+        run: |
+          echo "=== Dead code detection ==="
+
+          # 未使用のexportを検出（簡易版）
+          echo "Potentially unused exports:"
+          find . -name "*.ts" -o -name "*.tsx" | xargs grep -h "^export " | sort | uniq -c | sort -n
+
+      - name: Bundle size analysis
+        run: |
+          echo "=== Bundle size analysis ==="
+
+          # Fresh buildのサイズ分析
+          deno check main.ts
+
+          if [ -d "_fresh" ]; then
+            echo "Fresh build output size:"
+            du -sh _fresh/
+
+            echo "Detailed size breakdown:"
+            find _fresh -type f -name "*.js" -o -name "*.css" | xargs ls -lh
+          fi
+
+      - name: Upload quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: |
+            lint-results.json
+            type-check-results.txt
+          retention-days: 30
+
+  # 依存関係の更新チェック
+  dependency-updates:
+    name: Dependency Update Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "=== Checking for outdated dependencies ==="
+
+          # 現在の依存関係を確認
+          echo "Current dependencies from deno.json:"
+          if [ -f deno.json ]; then
+            jq -r '.imports | to_entries[] | "\(.key): \(.value)"' deno.json || echo "No imports found"
+          fi
+
+          echo -e "\nDirect imports from source files:"
+          find . -name "*.ts" -o -name "*.tsx" | xargs grep -h "from ['\"]https://" | sort | uniq | head -10
+
+      - name: Fresh framework version check
+        run: |
+          echo "=== Fresh framework version check ==="
+
+          # 現在のFreshバージョン
+          CURRENT_FRESH=$(grep "fresh@" deno.json | grep -o '[0-9]\+\.[0-9]\+\.[0-9]\+' || echo "unknown")
+          echo "Current Fresh version: $CURRENT_FRESH"
+
+          # 最新バージョンの確認（簡易版）
+          echo "Check https://deno.land/x/fresh for latest version"
+
+      - name: Security advisory check
+        run: |
+          echo "=== Security advisory check ==="
+
+          # Denoの既知の脆弱性データベースはまだ限定的
+          # 手動でチェックが必要な項目をリスト
+          echo "Manual security checks needed:"
+          echo "1. Check Deno security advisories: https://github.com/denoland/deno/security/advisories"
+          echo "2. Review third-party dependencies for known vulnerabilities"
+          echo "3. Ensure all HTTPS dependencies are from trusted sources"
+
+  # パフォーマンス監視
+  performance-monitoring:
+    name: Performance Monitoring
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PORT: 8090
+      OPENWEATHER_API_KEY: dummy_key_for_ci
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - name: Setup Node.js for monitoring tools
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install monitoring tools
+        run: |
+          npm install -g clinic
+          npm install -g autocannon
+          npm install -g @lhci/cli
+
+      - name: Install dependencies
+        run: deno cache main.ts
+
+      - name: Memory usage baseline
+        run: |
+          echo "=== Memory usage baseline ==="
+
+          # Denoプロセスのメモリ使用量測定
+          deno run --allow-all main.ts &
+          APP_PID=$!
+          sleep 5
+
+          if ps -p $APP_PID > /dev/null; then
+            ps -o pid,ppid,cmd,vsz,rss,pmem -p $APP_PID
+            kill $APP_PID
+          fi
+
+      - name: Performance benchmarks
+        run: |
+          echo "=== Performance benchmarks ==="
+
+          # アプリ起動
+          deno run --allow-all main.ts --port=$PORT &
+          APP_PID=$!
+          echo $APP_PID > app.pid
+
+          # アプリ起動待機
+          timeout 60 bash -c "
+            until curl -f http://localhost:$PORT > /dev/null 2>&1; do
+              sleep 2
+            done
+          "
+
+          # 基本的なロードテスト
+          echo "Basic load test results:"
+          autocannon -j -c 10 -d 10 http://localhost:$PORT/ > load-test-results.json
+
+          # 結果の表示
+          cat load-test-results.json | jq '.requests.average, .latency.average, .throughput.average'
+
+      - name: Resource usage monitoring
+        run: |
+          echo "=== Resource usage monitoring ==="
+
+          # CPU使用率とメモリ使用量の監視
+          if [ -f app.pid ]; then
+            APP_PID=$(cat app.pid)
+            if ps -p $APP_PID > /dev/null; then
+              echo "Resource usage during load test:"
+              ps -o pid,pcpu,pmem,vsz,rss,cmd -p $APP_PID
+            fi
+          fi
+
+      - name: Upload performance report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-monitoring-report
+          path: |
+            load-test-results.json
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        run: |
+          if [ -f app.pid ]; then
+            APP_PID=$(cat app.pid)
+            kill $APP_PID 2>/dev/null || true
+          fi

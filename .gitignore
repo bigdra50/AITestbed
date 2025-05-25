@@ -39,3 +39,4 @@ node_modules/
 # Fresh build
 _fresh/
 _build/
+fresh.gen.ts

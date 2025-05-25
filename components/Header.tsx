@@ -13,7 +13,7 @@ export function Header() {
               Weather App
             </h1>
           </div>
-          
+
           <div class="flex items-center space-x-4">
             <ThemeToggle />
           </div>
