@@ -54,11 +54,11 @@ function setCachedData(key: string, data: CitySearchResult[]): void {
 }
 
 function formatCityData(cities: OpenWeatherGeoResponse[]): CitySearchResult[] {
-  return cities.map(city => {
+  return cities.map((city) => {
     // 日本語の地名があれば使用、なければ英語名
     const japaneseNames = city.local_names?.ja || city.local_names?.["ja-JP"];
     const name = japaneseNames || city.name;
-    
+
     // 表示名を作成（都市名, 州/地域, 国）
     let displayName = name;
     if (city.state) {
@@ -155,7 +155,9 @@ export const handler: Handlers = {
 
         if (response.status === 429) {
           return new Response(
-            JSON.stringify({ error: "APIレート制限に達しました。しばらく後でお試しください。" }),
+            JSON.stringify({
+              error: "APIレート制限に達しました。しばらく後でお試しください。",
+            }),
             {
               status: 429,
               headers: { "Content-Type": "application/json" },
@@ -163,7 +165,9 @@ export const handler: Handlers = {
           );
         }
 
-        throw new Error(`OpenWeatherMap Geocoding API error: ${response.status}`);
+        throw new Error(
+          `OpenWeatherMap Geocoding API error: ${response.status}`,
+        );
       }
 
       const data: OpenWeatherGeoResponse[] = await response.json();

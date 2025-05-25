@@ -74,7 +74,9 @@ export const handler: Handlers = {
     // パラメータ検証
     if (!lat && !lon && !city) {
       return new Response(
-        JSON.stringify({ error: "座標（lat, lon）または都市名（city）が必要です" }),
+        JSON.stringify({
+          error: "座標（lat, lon）または都市名（city）が必要です",
+        }),
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -93,7 +95,11 @@ export const handler: Handlers = {
     }
 
     // キャッシュチェック
-    const cacheKey = getCacheKey(lat || undefined, lon || undefined, city || undefined);
+    const cacheKey = getCacheKey(
+      lat || undefined,
+      lon || undefined,
+      city || undefined,
+    );
     if (cacheKey) {
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
@@ -166,7 +172,9 @@ export const handler: Handlers = {
 
         if (response.status === 429) {
           return new Response(
-            JSON.stringify({ error: "APIレート制限に達しました。しばらく後でお試しください。" }),
+            JSON.stringify({
+              error: "APIレート制限に達しました。しばらく後でお試しください。",
+            }),
             {
               status: 429,
               headers: { "Content-Type": "application/json" },
@@ -220,7 +228,8 @@ export const handler: Handlers = {
 
       return new Response(
         JSON.stringify({
-          error: "現在の天気情報の取得に失敗しました。しばらく後でお試しください。",
+          error:
+            "現在の天気情報の取得に失敗しました。しばらく後でお試しください。",
         }),
         {
           status: 500,

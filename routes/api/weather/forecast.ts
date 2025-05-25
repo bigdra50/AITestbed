@@ -85,7 +85,7 @@ function processForecastData(data: OpenWeatherForecastResponse): WeatherData {
   }>();
 
   // 時間別データを処理
-  const hourlyData = data.list.slice(0, 24).map(item => ({
+  const hourlyData = data.list.slice(0, 24).map((item) => ({
     time: new Date(item.dt * 1000).toISOString(),
     temperature: Math.round(item.main.temp),
     weather: item.weather[0].description,
@@ -94,10 +94,10 @@ function processForecastData(data: OpenWeatherForecastResponse): WeatherData {
   }));
 
   // 日別データを集約
-  data.list.forEach(item => {
+  data.list.forEach((item) => {
     const date = new Date(item.dt * 1000);
-    const dateStr = date.toISOString().split('T')[0];
-    
+    const dateStr = date.toISOString().split("T")[0];
+
     if (!dailyForecasts.has(dateStr)) {
       dailyForecasts.set(dateStr, {
         date: dateStr,
@@ -108,24 +108,27 @@ function processForecastData(data: OpenWeatherForecastResponse): WeatherData {
         windSpeed: item.wind.speed,
       });
     }
-    
+
     const forecast = dailyForecasts.get(dateStr)!;
     forecast.temps.push(item.main.temp);
-    
+
     // 降水量を累積
-    forecast.precipitation += (item.rain?.["3h"] || 0) + (item.snow?.["3h"] || 0);
+    forecast.precipitation += (item.rain?.["3h"] || 0) +
+      (item.snow?.["3h"] || 0);
   });
 
   // 5日間の予報データを作成
-  const forecastArray = Array.from(dailyForecasts.values()).slice(0, 5).map(forecast => ({
-    date: forecast.date,
-    high: Math.round(Math.max(...forecast.temps)),
-    low: Math.round(Math.min(...forecast.temps)),
-    weather: forecast.weather,
-    icon: forecast.icon,
-    precipitation: Math.round(forecast.precipitation * 10) / 10, // 小数点1桁
-    windSpeed: forecast.windSpeed,
-  }));
+  const forecastArray = Array.from(dailyForecasts.values()).slice(0, 5).map(
+    (forecast) => ({
+      date: forecast.date,
+      high: Math.round(Math.max(...forecast.temps)),
+      low: Math.round(Math.min(...forecast.temps)),
+      weather: forecast.weather,
+      icon: forecast.icon,
+      precipitation: Math.round(forecast.precipitation * 10) / 10, // 小数点1桁
+      windSpeed: forecast.windSpeed,
+    }),
+  );
 
   return {
     location: {
@@ -162,7 +165,9 @@ export const handler: Handlers = {
     // パラメータ検証
     if (!lat && !lon && !city) {
       return new Response(
-        JSON.stringify({ error: "座標（lat, lon）または都市名（city）が必要です" }),
+        JSON.stringify({
+          error: "座標（lat, lon）または都市名（city）が必要です",
+        }),
         {
           status: 400,
           headers: { "Content-Type": "application/json" },
@@ -181,7 +186,11 @@ export const handler: Handlers = {
     }
 
     // キャッシュチェック
-    const cacheKey = getCacheKey(lat || undefined, lon || undefined, city || undefined);
+    const cacheKey = getCacheKey(
+      lat || undefined,
+      lon || undefined,
+      city || undefined,
+    );
     if (cacheKey) {
       const cachedData = getCachedData(cacheKey);
       if (cachedData) {
@@ -254,7 +263,9 @@ export const handler: Handlers = {
 
         if (response.status === 429) {
           return new Response(
-            JSON.stringify({ error: "APIレート制限に達しました。しばらく後でお試しください。" }),
+            JSON.stringify({
+              error: "APIレート制限に達しました。しばらく後でお試しください。",
+            }),
             {
               status: 429,
               headers: { "Content-Type": "application/json" },
@@ -262,7 +273,9 @@ export const handler: Handlers = {
           );
         }
 
-        throw new Error(`OpenWeatherMap Forecast API error: ${response.status}`);
+        throw new Error(
+          `OpenWeatherMap Forecast API error: ${response.status}`,
+        );
       }
 
       const data: OpenWeatherForecastResponse = await response.json();
@@ -288,7 +301,8 @@ export const handler: Handlers = {
 
       return new Response(
         JSON.stringify({
-          error: "天気予報情報の取得に失敗しました。しばらく後でお試しください。",
+          error:
+            "天気予報情報の取得に失敗しました。しばらく後でお試しください。",
         }),
         {
           status: 500,
