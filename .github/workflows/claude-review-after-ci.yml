@@ -1,0 +1,127 @@
+name: Claude Review After CI
+
+on:
+  workflow_run:
+    workflows: ["CI - Basic Checks"]
+    types: [completed]
+
+jobs:
+  claude-review:
+    if: |
+      github.event.workflow_run.conclusion == 'success' && 
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_branch != 'main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: read
+      actions: read
+      id-token: write
+    
+    steps:
+      - name: Debug workflow_run event
+        run: |
+          echo "=== Workflow Run Event Debug ==="
+          echo "Conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Event: ${{ github.event.workflow_run.event }}"
+          echo "Head branch: ${{ github.event.workflow_run.head_branch }}"
+          echo "Head SHA: ${{ github.event.workflow_run.head_sha }}"
+          echo "Repository: ${{ github.event.workflow_run.repository.full_name }}"
+
+      - name: Get PR info
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('=== Searching for PR ===');
+            console.log('Branch:', context.payload.workflow_run.head_branch);
+            console.log('Repository:', context.repo.owner + '/' + context.repo.repo);
+            
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${context.payload.workflow_run.head_branch}`,
+              state: 'open'
+            });
+            
+            console.log('Found PRs:', pullRequests.length);
+            pullRequests.forEach(pr => {
+              console.log(`- PR #${pr.number}: ${pr.title} (${pr.head.ref})`);
+            });
+            
+            if (pullRequests.length === 0) {
+              core.setFailed('No open pull request found for this branch');
+              return;
+            }
+            
+            const pr = pullRequests[0];
+            core.setOutput('number', pr.number);
+            core.setOutput('sha', pr.head.sha);
+            console.log('Selected PR:', pr.number);
+            return pr.number;
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Check if review already exists
+        id: check-review
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('=== Checking for existing Claude reviews ===');
+            
+            // PRコメントをチェック
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ steps.pr.outputs.number }}
+            });
+            
+            console.log('Total comments:', comments.length);
+            
+            const claudeComment = comments.find(comment => 
+              comment.user.login === 'github-actions[bot]' && 
+              comment.body && 
+              comment.body.includes('Claude Code レビュー')
+            );
+            
+            if (claudeComment) {
+              console.log('Found existing Claude review comment:', claudeComment.id);
+              core.setOutput('exists', 'true');
+            } else {
+              console.log('No existing Claude review found');
+              core.setOutput('exists', 'false');
+            }
+
+      - name: Run Claude Review
+        if: steps.check-review.outputs.exists == 'false'
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          timeout_minutes: "60"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pr_number: ${{ steps.pr.outputs.number }}
+          custom_instructions: |
+            日本語で応答してください。
+            このPRのレビューをお願いします。すべてのCIチェックが通過した後のレビューです。
+          direct_prompt: |
+            # Claude Code レビュー
+
+            すべてのCIチェックが正常に完了したため、コードレビューを実施します。
+
+            ## 重点確認項目
+            - コード品質とベストプラクティス
+            - 潜在的なバグや問題
+            - パフォーマンスの考慮事項
+            - セキュリティへの影響
+            - テストカバレッジ
+            - ドキュメントの更新が必要かどうか
+
+            改善提案がある場合は、具体的で建設的なフィードバックを提供してください。
+            インラインコメントを使用して、特定の問題箇所を明確に指摘してください。
+
+            **注意**: このレビューはCIが全て成功した後に実行されています。
