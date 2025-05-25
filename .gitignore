@@ -1,0 +1,41 @@
+# Environment variables
+.env
+.env.local
+
+# Deno generated files
+.deno/
+
+# Build output
+_fresh/
+build/
+dist/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# Dependencies (if using npm/yarn alongside deno)
+node_modules/
+
+# Cache
+.cache/
+
+# Fresh build
+_fresh/
+_build/
