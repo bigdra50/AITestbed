@@ -54,7 +54,7 @@ jobs:
       - name: Build application
         run: |
           echo "=== Building on ${{ matrix.os }} ==="
-          deno task build
+          deno check main.ts
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4

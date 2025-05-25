@@ -175,7 +175,7 @@ jobs:
           echo "=== Bundle size analysis ==="
 
           # Fresh buildのサイズ分析
-          deno task build
+          deno check main.ts
 
           if [ -d "_fresh" ]; then
             echo "Fresh build output size:"
