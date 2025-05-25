@@ -1,32 +1,32 @@
-import { signal, computed } from "@preact/signals";
+import { computed, signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { WeatherData } from "../types/weather.ts";
 
 // 位置情報の状態管理
 interface LocationState {
-  status: 'idle' | 'requesting' | 'granted' | 'denied' | 'error';
+  status: "idle" | "requesting" | "granted" | "denied" | "error";
   coordinates?: { lat: number; lon: number };
   error?: string;
 }
 
 // 天気データの状態管理
 interface WeatherState {
-  status: 'idle' | 'loading' | 'loaded' | 'error';
+  status: "idle" | "loading" | "loaded" | "error";
   data?: WeatherData;
   error?: string;
 }
 
-const locationState = signal<LocationState>({ status: 'idle' });
-const weatherState = signal<WeatherState>({ status: 'idle' });
+const locationState = signal<LocationState>({ status: "idle" });
+const weatherState = signal<WeatherState>({ status: "idle" });
 
 // 現在位置を取得する関数（Lintエラー修正：asyncキーワードを削除）
 function getCurrentLocation(): Promise<void> {
   return new Promise((resolve, reject) => {
-    locationState.value = { status: 'requesting' };
+    locationState.value = { status: "requesting" };
 
     if (!navigator.geolocation) {
-      const error = '位置情報がサポートされていません';
-      locationState.value = { status: 'error', error };
+      const error = "位置情報がサポートされていません";
+      locationState.value = { status: "error", error };
       reject(new Error(error));
       return;
     }
@@ -37,27 +37,27 @@ function getCurrentLocation(): Promise<void> {
           lat: position.coords.latitude,
           lon: position.coords.longitude,
         };
-        locationState.value = { status: 'granted', coordinates };
+        locationState.value = { status: "granted", coordinates };
         resolve();
       },
       (error) => {
-        let errorMessage = '位置情報の取得に失敗しました';
-        
+        let errorMessage = "位置情報の取得に失敗しました";
+
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            errorMessage = '位置情報の利用が拒否されました';
-            locationState.value = { status: 'denied', error: errorMessage };
+            errorMessage = "位置情報の利用が拒否されました";
+            locationState.value = { status: "denied", error: errorMessage };
             break;
           case error.POSITION_UNAVAILABLE:
-            errorMessage = '位置情報が利用できません';
-            locationState.value = { status: 'error', error: errorMessage };
+            errorMessage = "位置情報が利用できません";
+            locationState.value = { status: "error", error: errorMessage };
             break;
           case error.TIMEOUT:
-            errorMessage = '位置情報の取得がタイムアウトしました';
-            locationState.value = { status: 'error', error: errorMessage };
+            errorMessage = "位置情報の取得がタイムアウトしました";
+            locationState.value = { status: "error", error: errorMessage };
             break;
           default:
-            locationState.value = { status: 'error', error: errorMessage };
+            locationState.value = { status: "error", error: errorMessage };
             break;
         }
         reject(new Error(errorMessage));
@@ -65,8 +65,8 @@ function getCurrentLocation(): Promise<void> {
       {
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 300000 // 5分間キャッシュ
-      }
+        maximumAge: 300000, // 5分間キャッシュ
+      },
     );
   });
 }
@@ -74,26 +74,28 @@ function getCurrentLocation(): Promise<void> {
 // 天気データを取得する関数
 async function fetchWeatherData(lat: number, lon: number): Promise<void> {
   try {
-    weatherState.value = { status: 'loading' };
-    
+    weatherState.value = { status: "loading" };
+
     const response = await fetch(`/api/weather/current?lat=${lat}&lon=${lon}`);
-    
+
     if (!response.ok) {
       throw new Error(`天気データの取得に失敗しました: ${response.status}`);
     }
-    
+
     const data: WeatherData = await response.json();
-    weatherState.value = { status: 'loaded', data };
+    weatherState.value = { status: "loaded", data };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '天気データの取得に失敗しました';
-    weatherState.value = { status: 'error', error: errorMessage };
+    const errorMessage = error instanceof Error
+      ? error.message
+      : "天気データの取得に失敗しました";
+    weatherState.value = { status: "error", error: errorMessage };
   }
 }
 
 // 再取得ボタンのハンドラー
 function handleRefresh(): void {
-  locationState.value = { status: 'idle' };
-  weatherState.value = { status: 'idle' };
+  locationState.value = { status: "idle" };
+  weatherState.value = { status: "idle" };
   getCurrentLocation()
     .then(() => {
       const coords = locationState.value.coordinates;
@@ -102,7 +104,7 @@ function handleRefresh(): void {
       }
     })
     .catch((error) => {
-      console.error('位置情報の取得に失敗:', error);
+      console.error("位置情報の取得に失敗:", error);
     });
 }
 
@@ -113,8 +115,24 @@ const getWeatherIconUrl = (icon: string): string => {
 
 // 風向きを度数から方角に変換
 const getWindDirection = (degrees: number): string => {
-  const directions = ['北', '北北東', '北東', '東北東', '東', '東南東', '南東', '南南東', 
-                     '南', '南南西', '南西', '西南西', '西', '西北西', '北西', '北北西'];
+  const directions = [
+    "北",
+    "北北東",
+    "北東",
+    "東北東",
+    "東",
+    "東南東",
+    "南東",
+    "南南東",
+    "南",
+    "南南西",
+    "南西",
+    "西南西",
+    "西",
+    "西北西",
+    "北西",
+    "北北西",
+  ];
   const index = Math.round(degrees / 22.5) % 16;
   return directions[index];
 };
@@ -144,7 +162,9 @@ function LoadingSkeleton() {
 }
 
 // エラー表示コンポーネント
-function ErrorDisplay({ error, onRetry }: { error: string; onRetry: () => void }) {
+function ErrorDisplay(
+  { error, onRetry }: { error: string; onRetry: () => void },
+) {
   return (
     <div class="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg">
       <div class="text-center">
@@ -176,26 +196,42 @@ export default function CurrentLocationWeather() {
         }
       })
       .catch((error) => {
-        console.error('位置情報の取得に失敗:', error);
+        console.error("位置情報の取得に失敗:", error);
       });
   }, []);
 
   // ローディング状態の表示
-  if (locationState.value.status === 'requesting' || weatherState.value.status === 'loading') {
+  if (
+    locationState.value.status === "requesting" ||
+    weatherState.value.status === "loading"
+  ) {
     return <LoadingSkeleton />;
   }
 
   // エラー状態の表示
-  if (locationState.value.status === 'denied' || locationState.value.status === 'error') {
-    return <ErrorDisplay error={locationState.value.error || 'エラーが発生しました'} onRetry={handleRefresh} />;
+  if (
+    locationState.value.status === "denied" ||
+    locationState.value.status === "error"
+  ) {
+    return (
+      <ErrorDisplay
+        error={locationState.value.error || "エラーが発生しました"}
+        onRetry={handleRefresh}
+      />
+    );
   }
 
-  if (weatherState.value.status === 'error') {
-    return <ErrorDisplay error={weatherState.value.error || '天気データの取得に失敗しました'} onRetry={handleRefresh} />;
+  if (weatherState.value.status === "error") {
+    return (
+      <ErrorDisplay
+        error={weatherState.value.error || "天気データの取得に失敗しました"}
+        onRetry={handleRefresh}
+      />
+    );
   }
 
   // 天気データが読み込まれていない場合
-  if (weatherState.value.status !== 'loaded' || !weatherState.value.data) {
+  if (weatherState.value.status !== "loaded" || !weatherState.value.data) {
     return <LoadingSkeleton />;
   }
 
@@ -282,7 +318,8 @@ export default function CurrentLocationWeather() {
         <div class="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div class="text-gray-600 dark:text-gray-400 mb-1">位置</div>
           <div class="font-semibold text-gray-800 dark:text-white text-xs">
-            {weather.location.coordinates.lat.toFixed(2)}, {weather.location.coordinates.lon.toFixed(2)}
+            {weather.location.coordinates.lat.toFixed(2)},{" "}
+            {weather.location.coordinates.lon.toFixed(2)}
           </div>
         </div>
       </div>
