@@ -74,13 +74,48 @@ jobs:
           echo "=== Running TypeScript type check ==="
           deno check **/*.ts **/*.tsx
 
+      - name: Start Fresh app for E2E tests
+        env:
+          PORT: 8082
+          OPENWEATHER_API_KEY: dummy_key_for_ci
+        run: |
+          echo "=== Starting Fresh application for E2E tests ==="
+          # アプリケーションをバックグラウンドで起動
+          timeout 30 bash -c "deno run --allow-all main.ts --port=$PORT" &
+          APP_PID=$!
+          echo $APP_PID > app_e2e.pid
+
+          # アプリ起動待機
+          echo "Waiting for app to start..."
+          timeout 30 bash -c "
+            until curl -f http://localhost:$PORT > /dev/null 2>&1; do
+              echo 'Waiting for app to start...'
+              sleep 3
+            done
+          " || {
+            echo '❌ App failed to start within 30 seconds'
+            if [ -f app_e2e.pid ]; then
+              kill $(cat app_e2e.pid) 2>/dev/null || true
+            fi
+            exit 1
+          }
+
+          echo '✅ App started successfully'
+
       - name: Run unit tests
+        env:
+          OPENWEATHER_API_KEY: dummy_key_for_ci
         run: |
           echo "=== Running unit tests ==="
           # テストファイルが存在するかチェック
           if find . -name "*test*.ts" -o -name "*_test.ts" -o -name "test*.ts" | grep -q .; then
             echo "Test files found, running tests..."
             deno test \
+              tests/ \
+              components/ \
+              islands/ \
+              routes/ \
+              types/ \
               --allow-all \
               --coverage=coverage/ \
               --junit-path=./junit.xml \
@@ -91,7 +126,21 @@ jobs:
             echo '<?xml version="1.0" encoding="UTF-8"?><testsuites><testsuite name="no-tests" tests="0" failures="0" errors="0" time="0"/></testsuites>' > junit.xml
           fi
 
+      - name: Stop Fresh app after E2E tests
+        if: always()
+        run: |
+          if [ -f app_e2e.pid ]; then
+            APP_PID=$(cat app_e2e.pid)
+            echo "Stopping app process $APP_PID"
+            kill $APP_PID 2>/dev/null || true
+            # プロセスの完全終了を待機
+            sleep 2
+            kill -9 $APP_PID 2>/dev/null || true
+            rm -f app_e2e.pid
+          fi
+
       - name: Generate coverage report
+        continue-on-error: true
         run: |
           echo "=== Generating coverage report ==="
           if [ -d coverage/ ] && [ "$(ls -A coverage/)" ]; then

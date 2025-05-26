@@ -46,6 +46,59 @@ jobs:
       - name: Install dependencies
         run: deno cache main.ts
 
+      - name: Start Fresh app for E2E tests
+        shell: bash
+        env:
+          PORT: 8082
+          OPENWEATHER_API_KEY: dummy_key_for_ci
+        run: |
+          echo "=== Starting Fresh application for E2E tests on ${{ matrix.os }} ==="
+          deno run --allow-all main.ts --port=$PORT &
+          APP_PID=$!
+          echo $APP_PID > app_e2e.pid
+
+          # アプリ起動待機
+          echo "Waiting for app to start..."
+          WAIT_SECONDS=30
+          SECONDS_WAITED=0
+          APP_STARTED=false
+
+          if command -v timeout >/dev/null 2>&1; then
+            # timeout コマンドが利用可能な場合 (主にLinux)
+            echo "timeout command found. Using timeout for ${WAIT_SECONDS}s on ${{ matrix.os }}."
+            timeout $WAIT_SECONDS bash -c "
+              until curl -f -s http://localhost:$PORT > /dev/null 2>&1; do
+                echo 'Waiting for app to start on ${{ matrix.os }} (using timeout)...'
+                sleep 3
+              done
+            " && APP_STARTED=true
+          else
+            # timeout コマンドが利用できない場合 (Windows, macOSなど)
+            echo "timeout command not found. Using while loop for ${WAIT_SECONDS}s on ${{ matrix.os }}."
+            while [ $SECONDS_WAITED -lt $WAIT_SECONDS ]; do
+              if curl -f -s http://localhost:$PORT > /dev/null 2>&1; then
+                APP_STARTED=true
+                break
+              fi
+              echo "Waiting for app to start on ${{ matrix.os }} (${SECONDS_WAITED}s / ${WAIT_SECONDS}s)..."
+              sleep 3
+              SECONDS_WAITED=$((SECONDS_WAITED + 3))
+            done
+          fi
+
+          if [ "$APP_STARTED" = "false" ]; then
+            echo "❌ App failed to start within $WAIT_SECONDS seconds on ${{ matrix.os }}"
+            # プロセス停止処理 (OSによってコマンドを使い分ける)
+            if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+              taskkill /F /PID $(cat app_e2e.pid) 2>/dev/null || true
+            else
+              kill $(cat app_e2e.pid) 2>/dev/null || true
+            fi
+            exit 1
+          fi
+
+          echo "✅ App started successfully on ${{ matrix.os }}"
+
       - name: Run tests
         shell: bash
         run: |
@@ -58,6 +111,31 @@ jobs:
             echo "No test files found, skipping tests"
             mkdir -p coverage-${{ matrix.os }}/
             echo "No tests executed" > coverage-${{ matrix.os }}/dummy.txt
+          fi
+
+      - name: Stop Fresh app after E2E tests
+        if: always()
+        shell: bash
+        run: |
+          echo "=== Stopping Fresh app after E2E tests on ${{ matrix.os }} ==="
+          if [ -f app_e2e.pid ]; then
+            APP_PID=$(cat app_e2e.pid)
+            echo "Stopping app process $APP_PID on ${{ matrix.os }}"
+            if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+              taskkill /F /PID $APP_PID 2>/dev/null || true
+            else
+              kill $APP_PID 2>/dev/null || true
+            fi
+            # Brief pause to allow process to terminate, especially on Windows
+            sleep 2 
+            # Force kill if still running (not applicable for Windows taskkill /F)
+            if [[ "${{ matrix.os }}" != "windows-latest" ]]; then
+                kill -9 $APP_PID 2>/dev/null || true
+            fi
+            rm -f app_e2e.pid
+            echo "App stopped and app_e2e.pid removed on ${{ matrix.os }}"
+          else
+            echo "app_e2e.pid not found on ${{ matrix.os }}. No action taken."
           fi
 
       - name: Build application
