@@ -77,10 +77,11 @@ jobs:
       - name: Start Fresh app for E2E tests
         env:
           PORT: 8082
+          OPENWEATHER_API_KEY: dummy_key_for_ci
         run: |
           echo "=== Starting Fresh application for E2E tests ==="
           # アプリケーションをバックグラウンドで起動
-          timeout 60 bash -c "deno run --allow-all main.ts --port=$PORT" &
+          timeout 30 bash -c "deno run --allow-all main.ts --port=$PORT" &
           APP_PID=$!
           echo $APP_PID > app_e2e.pid
 
