@@ -103,6 +103,8 @@ jobs:
           echo '✅ App started successfully'
 
       - name: Run unit tests
+        env:
+          OPENWEATHER_API_KEY: dummy_key_for_ci
         run: |
           echo "=== Running unit tests ==="
           # テストファイルが存在するかチェック
