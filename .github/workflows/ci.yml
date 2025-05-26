@@ -140,6 +140,7 @@ jobs:
           fi
 
       - name: Generate coverage report
+        continue-on-error: true
         run: |
           echo "=== Generating coverage report ==="
           if [ -d coverage/ ] && [ "$(ls -A coverage/)" ]; then
