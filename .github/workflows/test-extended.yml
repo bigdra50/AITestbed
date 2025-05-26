@@ -57,50 +57,47 @@ jobs:
           APP_PID=$!
           echo $APP_PID > app_e2e.pid
 
+          # アプリ起動待機
           echo "Waiting for app to start..."
-          # For Windows, 'timeout' command behaves differently or might not be available directly in Git Bash.
-          # A simple loop with sleep is more portable for waiting.
-          # However, the provided example uses `timeout 30 bash -c "..."`, which implies bash is capable.
-          # Let's stick to the example structure for now.
-          # If `timeout` is not found, GitHub Actions might fail here on Windows.
-          # A more robust Windows solution would involve PowerShell or a different wait mechanism.
-          
-          # Check if timeout command exists, otherwise use a loop (for Windows Git Bash potentially)
-          if ! command -v timeout &> /dev/null && [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-            echo "Timeout command not found, using fallback loop for Windows"
-            end_time=$(( $(date +%s) + 30 )) # 30 seconds from now
-            while true; do
-              curl -f -s http://localhost:$PORT > /dev/null 2>&1 && break
-              if [ $(date +%s) -gt $end_time ]; then
-                echo '❌ App failed to start within 30 seconds on ${{ matrix.os }} (fallback loop)'
-                if [ -f app_e2e.pid ]; then
-                  taskkill /F /PID $(cat app_e2e.pid) 2>/dev/null || true
-                fi
-                exit 1
-              fi
-              echo 'Waiting for app to start on ${{ matrix.os }} (fallback loop)...'
-              sleep 3
-            done
-          else
-            # Standard timeout command for Linux/macOS and potentially Windows if available in shell
-            timeout 30 bash -c "
+          WAIT_SECONDS=30
+          SECONDS_WAITED=0
+          APP_STARTED=false
+
+          if command -v timeout >/dev/null 2>&1; then
+            # timeout コマンドが利用可能な場合 (主にLinux)
+            echo "timeout command found. Using timeout for ${WAIT_SECONDS}s on ${{ matrix.os }}."
+            timeout $WAIT_SECONDS bash -c "
               until curl -f -s http://localhost:$PORT > /dev/null 2>&1; do
-                echo 'Waiting for app to start on ${{ matrix.os }}...'
+                echo 'Waiting for app to start on ${{ matrix.os }} (using timeout)...'
                 sleep 3
               done
-            " || {
-              echo '❌ App failed to start within 30 seconds on ${{ matrix.os }}'
-              if [ -f app_e2e.pid ]; then
-                if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
-                  taskkill /F /PID $(cat app_e2e.pid) 2>/dev/null || true
-                else
-                  kill $(cat app_e2e.pid) 2>/dev/null || true
-                fi
+            " && APP_STARTED=true
+          else
+            # timeout コマンドが利用できない場合 (Windows, macOSなど)
+            echo "timeout command not found. Using while loop for ${WAIT_SECONDS}s on ${{ matrix.os }}."
+            while [ $SECONDS_WAITED -lt $WAIT_SECONDS ]; do
+              if curl -f -s http://localhost:$PORT > /dev/null 2>&1; then
+                APP_STARTED=true
+                break
               fi
-              exit 1
-            }
+              echo "Waiting for app to start on ${{ matrix.os }} (${SECONDS_WAITED}s / ${WAIT_SECONDS}s)..."
+              sleep 3
+              SECONDS_WAITED=$((SECONDS_WAITED + 3))
+            done
           fi
-          echo '✅ App started successfully on ${{ matrix.os }}'
+
+          if [ "$APP_STARTED" = "false" ]; then
+            echo "❌ App failed to start within $WAIT_SECONDS seconds on ${{ matrix.os }}"
+            # プロセス停止処理 (OSによってコマンドを使い分ける)
+            if [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+              taskkill /F /PID $(cat app_e2e.pid) 2>/dev/null || true
+            else
+              kill $(cat app_e2e.pid) 2>/dev/null || true
+            fi
+            exit 1
+          fi
+
+          echo "✅ App started successfully on ${{ matrix.os }}"
 
       - name: Run tests
         shell: bash
