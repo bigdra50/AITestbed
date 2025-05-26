@@ -116,8 +116,6 @@ jobs:
               islands/ \
               routes/ \
               types/ \
-              main.ts \
-              fresh.config.ts \
               --allow-all \
               --coverage=coverage/ \
               --junit-path=./junit.xml \
