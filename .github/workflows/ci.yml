@@ -109,6 +109,13 @@ jobs:
           if find . -name "*test*.ts" -o -name "*_test.ts" -o -name "test*.ts" | grep -q .; then
             echo "Test files found, running tests..."
             deno test \
+              tests/ \
+              components/ \
+              islands/ \
+              routes/ \
+              types/ \
+              main.ts \
+              fresh.config.ts \
               --allow-all \
               --coverage=coverage/ \
               --junit-path=./junit.xml \
